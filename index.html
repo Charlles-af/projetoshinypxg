@@ -138,6 +138,45 @@ const $ = id => document.getElementById(id);
 const roleta = $("roleta"), track = $("track");
 let filtroAtual = "ABCM", lista = [], offset = 0, W = 0, CW = 170, cells = [], girando = false;
 let resultadoSelecionado = null;
+const CHAVE_ESTADO_SORTEIO = "projetoShinyUltimoSorteio";
+
+function salvarResultado() {
+  try {
+    sessionStorage.setItem(CHAVE_ESTADO_SORTEIO, JSON.stringify({
+      filtro: filtroAtual,
+      pokemon: resultadoSelecionado ? resultadoSelecionado[0] : null,
+      quantidade: $("qsel").value,
+      r1: $("r1").textContent,
+      r2: $("r2").textContent
+    }));
+  } catch (e) {}
+}
+
+function restaurarResultado() {
+  try {
+    const salvo = JSON.parse(sessionStorage.getItem(CHAVE_ESTADO_SORTEIO) || "null");
+    if (!salvo || !salvo.pokemon) return;
+
+    const filtroExiste = FILTROS.some(([, cats]) => cats === salvo.filtro);
+    if (filtroExiste) {
+      filtroAtual = salvo.filtro;
+      document.querySelectorAll(".pill").forEach((b, i) => {
+        b.classList.toggle("on", FILTROS[i][1] === filtroAtual);
+      });
+      aplicarFiltro();
+    }
+
+    const indice = lista.findIndex(d => d[0] === salvo.pokemon);
+    if (indice === -1) return;
+
+    resultadoSelecionado = lista[indice];
+    $("qsel").value = salvo.quantidade;
+    $("r1").textContent = salvo.r1 || "";
+    $("r2").textContent = salvo.r2 || "";
+    offset = indice * CW + CW / 2 - W / 2;
+    draw();
+  } catch (e) {}
+}
 
 function aplicarFiltro() {
   resultadoSelecionado = null;
@@ -217,6 +256,7 @@ function finalizar() {
                : `Meta: ${q} Poké Ball${q > 1 ? "s" : ""} 🎯 Boa sorte no catch!`;
   }
   $("r2").textContent = msg;
+  salvarResultado();
 }
 
 /* ===== PIX ===== */
@@ -262,6 +302,7 @@ FILTROS.forEach(([nome, cats], i) => {
     document.querySelectorAll(".pill").forEach(x => x.classList.remove("on"));
     b.classList.add("on"); filtroAtual = cats;
     $("r1").textContent = ""; $("r2").textContent = "";
+    try { sessionStorage.removeItem(CHAVE_ESTADO_SORTEIO); } catch (e) {}
     aplicarFiltro();
   };
   $("filtros").appendChild(b);
@@ -269,6 +310,7 @@ FILTROS.forEach(([nome, cats], i) => {
 $("sortear").onclick = sortear;
 D.forEach(d => { new Image().src = BASE + d[1]; });
 layout(); aplicarFiltro();
+restaurarResultado();
 addEventListener("resize", () => {
   if (!girando) {
     const escolhido = resultadoSelecionado;
